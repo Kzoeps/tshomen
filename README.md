@@ -1,4 +1,4 @@
-# Meridian
+# Tshomen
 
 A local Mermaid diagram workspace built with React and Vite. Paste Mermaid source into the editor and see a live preview without sending your diagrams anywhere.
 
