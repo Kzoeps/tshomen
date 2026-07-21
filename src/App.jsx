@@ -21,7 +21,8 @@ import {
   ZoomIn,
 } from 'lucide-react'
 
-const STORAGE_KEY = 'meridian-diagrams-v1'
+const STORAGE_KEY = 'tshomen-diagrams-v1'
+const LEGACY_STORAGE_KEY = 'meridian-diagrams-v1'
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 16
 const ZOOM_STEP = 1.25
@@ -63,7 +64,7 @@ function createId() {
 
 function getInitialDiagrams() {
   try {
-    const saved = window.localStorage.getItem(STORAGE_KEY)
+    const saved = window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY)
     if (!saved) return defaultDiagrams
 
     const parsed = JSON.parse(saved)
@@ -150,7 +151,7 @@ function App() {
         <div className="brand-lockup">
           <div className="brand-mark" aria-hidden="true"><Sparkles size={16} strokeWidth={2.5} /></div>
           <div>
-            <div className="brand-name">Meridian</div>
+            <div className="brand-name">Tshomen</div>
             <div className="brand-kicker">Mermaid workspace</div>
           </div>
         </div>
@@ -315,7 +316,7 @@ function DiagramPreview({ content, diagramId, fileName, onNotice }) {
         return
       }
 
-      const renderId = `meridian-${diagramId.replace(/[^a-zA-Z0-9]/g, '')}-${renderNumber.current++}`
+      const renderId = `tshomen-${diagramId.replace(/[^a-zA-Z0-9]/g, '')}-${renderNumber.current++}`
       try {
         const result = await mermaid.render(renderId, content)
         if (!cancelled) {
