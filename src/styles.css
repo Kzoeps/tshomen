@@ -140,6 +140,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .export-button:hover { color: #263527; background: #e9f0e6; }
 .export-button.primary { color: #26311f; border-color: #b8d595; background: #d9efb8; }
 .export-button.primary:hover { background: #c9e5a5; }
+.copy-menu { position: relative; }
+.copy-menu-list { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; min-width: 96px; display: flex; flex-direction: column; padding: 4px; border: 1px solid #d9e2d7; border-radius: 6px; background: #f8faf7; box-shadow: 0 8px 24px rgba(20, 30, 18, 0.14); }
+.copy-menu-list button { padding: 7px 9px; text-align: left; color: #3d4a3b; border: 0; border-radius: 4px; background: transparent; font: 500 10px 'DM Mono', monospace; cursor: pointer; }
+.copy-menu-list button:hover { color: #26311f; background: #e9f0e6; }
 .toast { position: fixed; z-index: 20; bottom: 24px; left: 50%; display: flex; align-items: center; gap: 7px; padding: 10px 14px; color: #17200f; border-radius: 7px; background: var(--lime); box-shadow: 0 9px 30px rgba(0, 0, 0, 0.25); font: 600 11px 'DM Mono', monospace; transform: translateX(-50%); animation: toast-in 180ms ease-out; }
 .toast svg { color: #31521e; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }

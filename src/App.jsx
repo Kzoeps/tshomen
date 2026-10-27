@@ -303,6 +303,8 @@ function DiagramPreview({ content, diagramId, fileName, onNotice }) {
   const [diagramSize, setDiagramSize] = useState({ width: 1, height: 1 })
   const [isFullscreen, setIsFullscreen] = useState(false)
   const previewRef = useRef(null)
+  const copyMenuRef = useRef(null)
+  const [copyMenuOpen, setCopyMenuOpen] = useState(false)
   const stageRef = useRef(null)
   const dragRef = useRef(null)
   const renderNumber = useRef(0)
@@ -431,33 +433,63 @@ function DiagramPreview({ content, diagramId, fileName, onNotice }) {
       return
     }
 
-    let url
     try {
-      const serializedSvg = serializeSvgForImage(svg)
-      const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' })
-      url = URL.createObjectURL(svgBlob)
-      const image = await loadImage(url)
-      const canvas = document.createElement('canvas')
-      const ratio = Math.min(2, window.devicePixelRatio || 1)
-      canvas.width = image.width * ratio
-      canvas.height = image.height * ratio
-      const context = canvas.getContext('2d')
-      if (!context) throw new Error('Could not create a canvas context for PNG export.')
-
-      context.scale(ratio, ratio)
-      context.fillStyle = '#f8faf7'
-      context.fillRect(0, 0, image.width, image.height)
-      context.drawImage(image, 0, 0)
-
-      const pngBlob = await canvasToBlob(canvas, 'image/png')
-      downloadBlob(pngBlob, `${slugify(fileName)}.png`)
+      downloadBlob(await rasterizeSvg(svg, 'image/png'), `${slugify(fileName)}.png`)
       onNotice('PNG downloaded')
     } catch {
       onNotice('PNG export failed — try exporting SVG instead.')
-    } finally {
-      if (url) URL.revokeObjectURL(url)
     }
   }
+
+  const copyAs = async (format) => {
+    setCopyMenuOpen(false)
+    if (!svg) {
+      onNotice('Render a valid diagram before copying.')
+      return
+    }
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+      onNotice('This browser does not allow copying images to the clipboard.')
+      return
+    }
+
+    try {
+      // ClipboardItem receives promises so Safari keeps the user-gesture context while rendering.
+      if (format === 'svg') {
+        const markup = new Blob([svg], { type: 'text/plain' })
+        const items = { 'text/plain': markup }
+        if (ClipboardItem.supports?.('image/svg+xml')) {
+          items['image/svg+xml'] = new Blob([svg], { type: 'image/svg+xml' })
+        }
+        await navigator.clipboard.write([new ClipboardItem(items)])
+      } else {
+        const type = format === 'jpeg' ? 'image/jpeg' : 'image/png'
+        if (ClipboardItem.supports && !ClipboardItem.supports(type)) {
+          throw new Error(`${type} not supported`)
+        }
+        await navigator.clipboard.write([new ClipboardItem({ [type]: rasterizeSvg(svg, type) })])
+      }
+      onNotice(`${format.toUpperCase()} copied to clipboard`)
+    } catch {
+      onNotice(format === 'jpeg'
+        ? 'This browser cannot copy JPEG to the clipboard — copy as PNG instead.'
+        : `Copying ${format.toUpperCase()} failed — try downloading instead.`)
+    }
+  }
+
+  useEffect(() => {
+    if (!copyMenuOpen) return undefined
+    const close = (event) => {
+      if (event.type === 'keydown' && event.key !== 'Escape') return
+      if (event.type === 'pointerdown' && copyMenuRef.current?.contains(event.target)) return
+      setCopyMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [copyMenuOpen])
 
   return (
     <div className={`preview-shell ${isFullscreen ? 'fullscreen-preview' : ''}`} ref={previewRef}>
@@ -538,6 +570,22 @@ function DiagramPreview({ content, diagramId, fileName, onNotice }) {
           {error ? 'Needs attention' : svg ? 'Rendered locally' : 'Waiting for source'}
         </div>
         <div className="export-actions">
+          <div className="copy-menu" ref={copyMenuRef}>
+            <button
+              className="export-button"
+              type="button"
+              onClick={() => setCopyMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={copyMenuOpen}
+            ><Copy size={14} /> Copy <ChevronDown size={12} /></button>
+            {copyMenuOpen && (
+              <div className="copy-menu-list" role="menu">
+                <button type="button" role="menuitem" onClick={() => copyAs('png')}>PNG</button>
+                <button type="button" role="menuitem" onClick={() => copyAs('jpeg')}>JPEG</button>
+                <button type="button" role="menuitem" onClick={() => copyAs('svg')}>SVG</button>
+              </div>
+            )}
+          </div>
           <button className="export-button" type="button" onClick={exportSvg}><Download size={14} /> SVG</button>
           <button className="export-button primary" type="button" onClick={exportPng}><Download size={14} /> PNG</button>
         </div>
@@ -663,6 +711,27 @@ function getHtmlLabelLines(foreignObject) {
 
   visit(label)
   return lines.filter((line) => line.length > 0)
+}
+
+async function rasterizeSvg(svgMarkup, type) {
+  const url = URL.createObjectURL(new Blob([serializeSvgForImage(svgMarkup)], { type: 'image/svg+xml;charset=utf-8' }))
+  try {
+    const image = await loadImage(url)
+    const canvas = document.createElement('canvas')
+    const ratio = Math.min(2, window.devicePixelRatio || 1)
+    canvas.width = image.width * ratio
+    canvas.height = image.height * ratio
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error(`Could not create a canvas context for ${type} export.`)
+
+    context.scale(ratio, ratio)
+    context.fillStyle = '#f8faf7'
+    context.fillRect(0, 0, image.width, image.height)
+    context.drawImage(image, 0, 0)
+    return await canvasToBlob(canvas, type)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 function loadImage(url) {
